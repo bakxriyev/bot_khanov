@@ -13,7 +13,8 @@ export function showMainMenu(bot, chatId, userName = '') {
                 [{text: 'Kurs sotib olish'}],
                 [{text: 'Mening ma\'lumotlarim'}],
                 [{text: 'FAQ'}],
-                [{text: 'Akkauntni o\'chirish'}]
+                [{text: 'Akkauntni o\'chirish'}],
+                [{text: 'Admin bilan bog`lanish'}]
             ],
             resize_keyboard: true
         }
@@ -64,6 +65,7 @@ export async function showUserInfo(bot, chatId, userIds, API_URL, courses) {
 
         const response = await axios.get(`${API_URL}/users/${userIds[chatId]}`);
         const userData = response.data;
+        console.log('User data:', userData);
 
         if (!userData) {
             bot.sendMessage(chatId, 'Sizning maʼlumotlaringiz topilmadi. Iltimos, /start buyrugʻini yuboring.');
@@ -82,4 +84,9 @@ export async function showUserInfo(bot, chatId, userIds, API_URL, courses) {
         console.error('User info error:', error);
         bot.sendMessage(chatId, 'Maʼlumotlarni olishda xatolik yuz berdi. Iltimos, qayta urinib koʻring.');
     }
+}
+// Admin bilan bog'lanish funksiyasi
+export function contactAdmin(bot, chatId) {
+    const message = "🛠 Admin bilan bogʻlanish uchun quyidagi kontaktga murojaat qiling:\n\n@khanov_work";
+    bot.sendMessage(chatId, message);
 }

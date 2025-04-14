@@ -8,13 +8,16 @@ import { loadUserData, saveUserData } from './modules/data-strotage.js';
 import { courses } from './modules/courses.js';
 import { faq } from './modules/faq.js';
 import { generatePaymeLink } from './modules/payment-utils.js';
+// import { showMainMenu, showTariffs, showUserInfo } from './modules/menu.js';
+import { confirmDeleteAccount, deleteUserAccount } from './modules/account.js';
+import { contactAdmin, showMainMenu, showTariffs } from './modules/menu.js';
 
 // Bot token and API URL
-const token = process.env.TELEGRAM_BOT_TOKEN || '7898538816:AAGsvkzD5vfBy1289lvq3w_7b9HuuHd2RWw';
+const token = process.env.TELEGRAM_BOT_TOKEN || '8140794898:AAHn0LABJSZAQhlzZlQcxps9sDkYnkm14xc';
 const ADMIN_GROUP_ID = process.env.ADMIN_GROUP_ID || '-4631952717';
-const API_URL = process.env.API_URL || 'https://backend.khanovbekzod.uz';
-
-// Create bot instance
+const API_URL = process.env.API_URL || 'http://localhost:5010';
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
+/// Create bot instance
 const bot = new TelegramBot(token, {polling: true});
 
 // Load user data from storage
@@ -23,7 +26,7 @@ let userPhoneNumbers = userData.userPhoneNumbers || {};
 let userStates = userData.userStates || {};
 let userReminders = userData.userReminders || {};
 let paymentConfirmations = userData.paymentConfirmations || {};
-let userIds = userData.userIds || {};
+let userIds = userData.userIds || {}; // This will store database IDs
 
 // Save user data periodically (every 5 minutes)
 setInterval(() => {
@@ -37,26 +40,6 @@ setInterval(() => {
     console.log('User data saved automatically');
 }, 300000);
 
-// Main menu function
-const showMainMenu = (chatId, userName = '') => {
-    const greeting = userName ? `Assalomu alaykum ${userName}!` : 'Assalomu alaykum!';
-    const message = `${greeting}\n\nSiz savdo sohasida yangi bilimlar olishni, daromadingizni oshirishni yoki yaxshi ish topishni xohlaysizmi?\nMen ishlab chiqgan maxsus kurs sizga tezda yangi bilimlarni o'rganishga yordam beradi!\n\n💡 Bu yerda siz tanlov qilishingiz mumkin:\n📌 1. Kurs sotib olish – kurs haqida to'liq ma'lumot.\n\n📍 Davom etish uchun pastdagi tugmalardan birini tanlang:`;
-    
-    const options = {
-        reply_markup: {
-            keyboard: [
-                [{text: 'Kurs sotib olish'}],
-                [{text: 'Mening ma\'lumotlarim'}],
-                [{text: 'FAQ'}],
-                [{text: 'Akkauntni o\'chirish'}]
-            ],
-            resize_keyboard: true
-        }
-    };
-    
-    bot.sendMessage(chatId, message, options);
-};
-
 // Show user info
 const showUserInfo = async (chatId) => {
     try {
@@ -67,6 +50,7 @@ const showUserInfo = async (chatId) => {
 
         const response = await axios.get(`${API_URL}/users/${userIds[chatId]}`);
         const userData = response.data;
+        console.log('User data:', userData);
 
         if (!userData) {
             bot.sendMessage(chatId, 'Sizning maʼlumotlaringiz topilmadi. Iltimos, /start buyrugʻini yuboring.');
@@ -80,194 +64,16 @@ const showUserInfo = async (chatId) => {
         message += `📚 Kurs: ${userData.course !== 0 ? courses[userData.course].name : 'Tanlanmagan'}\n`;
         message += `📅 Ro'yxatdan o'tgan sana: ${new Date(userData.createdAt).toLocaleDateString() || 'Mavjud emas'}`;
 
-        bot.sendMessage(chatId, message);
+        bot.sendMessage(chatId, message, {
+            reply_markup: {
+                inline_keyboard: [
+                    [{text: 'Bosh menyu', callback_data: 'back_to_main'}]
+                ]
+            }
+        });
     } catch (error) {
         console.error('User info error:', error);
         bot.sendMessage(chatId, 'Maʼlumotlarni olishda xatolik yuz berdi. Iltimos, qayta urinib koʻring.');
-    }
-};
-
-// Show course tariffs
-const showTariffs = (chatId) => {
-    const message = `📌 Sizga mos kursni tanlang:`;
-    
-    const options = {
-        reply_markup: {
-            keyboard: [
-                [{text: `${courses[1].name} - ${courses[1].display_price}`}],
-                [{text: `${courses[2].name} - ${courses[2].display_price}`}],
-                [{text: `${courses[3].name} - ${courses[3].display_price}`}],
-                [{text: 'Orqaga'}]
-            ],
-            resize_keyboard: true
-        }
-    };
-
-    bot.sendMessage(chatId, message, options);
-};
-
-// Send course info and payment link
-const sendCourseInfo = async (chatId, courseId) => {
-    const course = courses[courseId];
-    
-    try {
-        // Get user data to include in payment link
-        const userId = userIds[chatId];
-        if (!userId) {
-            bot.sendMessage(chatId, 'Foydalanuvchi ma\'lumotlari topilmadi. Iltimos, /start buyrug\'ini qayta yuboring.');
-            return;
-        }
-        
-        const response = await axios.get(`${API_URL}/users/${userId}`);
-        const userData = response.data;
-        
-        if (!userData) {
-            bot.sendMessage(chatId, 'Foydalanuvchi ma\'lumotlari topilmadi. Iltimos, /start buyrug\'ini qayta yuboring.');
-            return;
-        }
-        
-        // Generate dynamic payment link with user's full name
-        const paymentLink = generatePaymeLink(
-            userData.full_name,
-            course.name,
-            course.price
-        );
-        
-        const message = `💰 ${course.name} – ${course.display_price}\n\n${course.description}\n\nKursni sotib olish uchun "To'lov qilish" tugmasini bosing.`;
-        
-        const options = {
-            caption: message,
-            reply_markup: {
-                inline_keyboard: [
-                    [{text: 'Payme orqali to\'lov qilish', url: paymentLink}],
-                    [{text: 'To\'lov qildim', callback_data: `payment_made_${courseId}`}]
-                ]
-            }
-        };
-        
-        // Send photo with payment button
-        bot.sendPhoto(chatId, course.image, options).catch(error => {
-            console.error('Send photo error:', error);
-            // Fallback to text message if photo fails
-            bot.sendMessage(chatId, message, {
-                reply_markup: {
-                    inline_keyboard: [
-                        [{text: 'Payme orqali to\'lov qilish', url: paymentLink}],
-                        [{text: 'To\'lov qildim', callback_data: `payment_made_${courseId}`}]
-                    ]
-                }
-            });
-        });
-        
-        // Schedule special offer reminder
-        if (!userReminders[chatId]) {
-            userReminders[chatId] = {
-                paid: false,
-                courseId: courseId
-            };
-        }
-        
-        // Save updated user data
-        saveUserData({
-            userPhoneNumbers,
-            userStates,
-            userReminders,
-            paymentConfirmations,
-            userIds
-        });
-        
-        // First reminder after 1 hour
-        setTimeout(() => {
-            if (userReminders[chatId] && !userReminders[chatId].paid) {
-                const reminderMessage = `📌 Siz hali ham kursni tanlamadingizmi?\n💡 Endi faqat bugun 10% chegirma!\n🎯 O'z kelajagingizga investitsiya qilish vaqti keldi!`;
-                bot.sendMessage(chatId, reminderMessage);
-            }
-        }, 3600000); // 1 hour
-        
-        // Second reminder after 2 hours with video
-        setTimeout(() => {
-            if (userReminders[chatId] && !userReminders[chatId].paid) {
-                bot.sendMessage(chatId, 'Bizning bitiruvchilarimiz natijalari bilan tanishing!');
-            }
-        }, 7200000); // 2 hours
-        
-        // Third reminder after 12 hours
-        setTimeout(() => {
-            if (userReminders[chatId] && !userReminders[chatId].paid) {
-                bot.sendMessage(chatId, 'Kursni kirish qismini ko\'ring va bu kurs sizga to\'g\'ri keladimi bilib oling.', {
-                    reply_markup: {
-                        inline_keyboard: [
-                            [{text: 'Kursni ko\'rish', url: 'https://example.com/preview'}]
-                        ]
-                    }
-                });
-            }
-        }, 43200000); // 12 hours
-    } catch (error) {
-        console.error('Error generating payment link:', error);
-        bot.sendMessage(chatId, 'Xatolik yuz berdi. Iltimos, qayta urinib ko\'ring.');
-    }
-};
-
-// Show FAQ
-const showFAQ = (chatId) => {
-    const options = {
-        reply_markup: {
-            inline_keyboard: faq.map((item, index) => {
-                return [{text: item.question, callback_data: `faq_${index}`}];
-            }).concat([[{text: 'Orqaga', callback_data: 'back_to_main'}]])
-        }
-    };
-    
-    bot.sendMessage(chatId, 'Tez-tez beriladigan savollar:', options);
-};
-
-// Delete account confirmation
-const confirmDeleteAccount = (chatId) => {
-    bot.sendMessage(chatId, 'Akkauntingizni o\'chirishni tasdiqlaysizmi?', {
-        reply_markup: {
-            inline_keyboard: [
-                [{text: 'Ha', callback_data: 'confirm_delete_account'}],
-                [{text: 'Yo\'q', callback_data: 'cancel_delete_account'}]
-            ]
-        }
-    });
-};
-
-// Delete user account
-const deleteUserAccount = async (chatId) => {
-    try {
-        if (!userIds[chatId]) {
-            bot.sendMessage(chatId, 'Akkaunt topilmadi.');
-            return;
-        }
-
-        // Delete user by ID
-        await axios.delete(`${API_URL}/users/${userIds[chatId]}`);
-        
-        // Clear user data from memory
-        delete userPhoneNumbers[chatId];
-        delete userStates[chatId];
-        delete userReminders[chatId];
-        delete userIds[chatId];
-        
-        // Save updated user data
-        saveUserData({
-            userPhoneNumbers,
-            userStates,
-            userReminders,
-            paymentConfirmations,
-            userIds
-        });
-        
-        bot.sendMessage(chatId, 'Sizning akkauntingiz muvaffaqiyatli o\'chirildi. Qayta ro\'yxatdan o\'tish uchun /start buyrug\'ini yuboring.', {
-            reply_markup: {
-                remove_keyboard: true
-            }
-        });
-    } catch (error) {
-        console.error('Delete account error:', error);
-        bot.sendMessage(chatId, 'Akkauntni o\'chirishda xatolik yuz berdi. Iltimos, qayta urinib ko\'ring.');
     }
 };
 
@@ -283,7 +89,7 @@ const isUserRegistered = async (chatId) => {
             const users = response.data;
             
             if (users && users.length > 0) {
-                // Found user, update local storage
+                // Found user, update local storage with database ID
                 userIds[chatId] = users[0].id;
                 userPhoneNumbers[chatId] = users[0].phone_number;
                 
@@ -357,72 +163,124 @@ const findUserByPhoneNumber = async (phoneNumber) => {
     }
 };
 
-// Check if phone number is registered and handle accordingly
-const checkPhoneNumberAndProceed = async (chatId, phoneNumber, telegramId, firstName, lastName, username) => {
+// Send course info and payment link
+const sendCourseInfo = async (chatId, courseId) => {
+    const course = courses[courseId];
+    
     try {
-        // Find user with this phone number
-        const existingUser = await findUserByPhoneNumber(phoneNumber);
+        // Get user data to include in payment link
+        const userId = userIds[chatId];
+        if (!userId) {
+            bot.sendMessage(chatId, 'Foydalanuvchi ma\'lumotlari topilmadi. Iltimos, /start buyrug\'ini qayta yuboring.');
+            return;
+        }
         
-        if (existingUser) {
-            // User already registered with this phone number
-            userIds[chatId] = existingUser.id;
-            userPhoneNumbers[chatId] = phoneNumber;
-            
-            // Update chat_id if it's different (user might be using a different device)
-            if (existingUser.chat_id !== chatId) {
-                await axios.get(`${API_URL}/users/${existingUser.id}`, {
-                    chat_id: chatId
-                });
-                console.log(`Updated chat_id for user ${existingUser.id} to ${chatId}`);
+        const response = await axios.get(`${API_URL}/users/${userId}`);
+        const userData = response.data;
+        
+        if (!userData) {
+            bot.sendMessage(chatId, 'Foydalanuvchi ma\'lumotlari topilmadi. Iltimos, /start buyrug\'ini qayta yuboring.');
+            return;
+        }
+        
+        // Generate dynamic payment link with user's full name
+        const paymentLink = generatePaymeLink(
+            userData.full_name,
+            course.name,
+            course.price
+        );
+        
+        const message = `💰 ${course.name} – ${course.display_price}\n\n${course.description}\n\nKursni sotib olish uchun "To'lov qilish" tugmasini bosing.`;
+        
+        const options = {
+            caption: message,
+            reply_markup: {
+                inline_keyboard: [
+                    [{text: 'Payme orqali to\'lov qilish', url: paymentLink}],
+                    [{text: 'To\'lov qildim', callback_data: `payment_made_${courseId}`}],
+                    [{text: 'Orqaga', callback_data: 'back_to_tariffs'}]
+                ]
             }
-            
-            bot.sendMessage(chatId, `Xush kelibsiz, ${existingUser.full_name}! Siz allaqachon ro'yxatdan o'tgansiz.`);
-            showMainMenu(chatId, existingUser.full_name);
-            
-            // Clear user state
-            delete userStates[chatId];
-            
-            // Save updated user data
-            saveUserData({
-                userPhoneNumbers,
-                userStates,
-                userReminders,
-                paymentConfirmations,
-                userIds
-            });
-            
-            console.log(`Existing user logged in: ${existingUser.id}, ${existingUser.full_name}`);
-        } else {
-            // New user, proceed with registration
-            userPhoneNumbers[chatId] = phoneNumber;
-            userStates[chatId] = {
-                step: 'registration_name',
-                phoneNumber: phoneNumber,
-                telegramId: telegramId,
-                firstName: firstName,
-                lastName: lastName,
-                username: username
-            };
-            
-            bot.sendMessage(chatId, 'Iltimos, to\'liq ism va familiyangizni kiriting:', {
+        };
+        
+        // Send photo with payment button
+        bot.sendPhoto(chatId, course.image, options).catch(error => {
+            console.error('Send photo error:', error);
+            // Fallback to text message if photo fails
+            bot.sendMessage(chatId, message, {
                 reply_markup: {
-                    remove_keyboard: true
+                    inline_keyboard: [
+                        [{text: 'Payme orqali to\'lov qilish', url: paymentLink}],
+                        [{text: 'To\'lov qildim', callback_data: `payment_made_${courseId}`}],
+                        [{text: 'Orqaga', callback_data: 'back_to_tariffs'}]
+                    ]
                 }
             });
-            
-            // Save updated user data
-            saveUserData({
-                userPhoneNumbers,
-                userStates,
-                userReminders,
-                paymentConfirmations,
-                userIds
-            });
-            
-            console.log(`New user registration started with phone: ${phoneNumber}`);
+        });
+        
+        // Schedule special offer reminder
+        if (!userReminders[chatId]) {
+            userReminders[chatId] = {
+                paid: false,
+                courseId: courseId,
+                userId: userId // Store database ID
+            };
         }
+        
+        // Save updated user data
+        saveUserData({
+            userPhoneNumbers,
+            userStates,
+            userReminders,
+            paymentConfirmations,
+            userIds
+        });
+        
+        // First reminder after 1 hour
+        setTimeout(() => {
+            if (userReminders[chatId] && !userReminders[chatId].paid) {
+                const reminderMessage = `📌 Siz hali ham kursni tanlamadingizmi?\n💡 Endi faqat bugun 10% chegirma!\n🎯 O'z kelajagingizga investitsiya qilish vaqti keldi!`;
+                bot.sendMessage(chatId, reminderMessage, {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{text: 'Kursga qaytish', callback_data: `show_course_${courseId}`}],
+                            [{text: 'Admin bilan bog\'lanish', url: `https://t.me/${ADMIN_USERNAME}`}]
+                        ]
+                    }
+                });
+            }
+        }, 3600000); // 1 hour
+        
+        // Second reminder after 2 hours with video
+        setTimeout(() => {
+            if (userReminders[chatId] && !userReminders[chatId].paid) {
+                bot.sendMessage(chatId, 'Bizning bitiruvchilarimiz natijalari bilan tanishing!', {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{text: 'Kursga qaytish', callback_data: `show_course_${courseId}`}],
+                            [{text: 'Admin bilan bog\'lanish', url: `https://t.me/${ADMIN_USERNAME}`}]
+                        ]
+                    }
+                });
+            }
+        }, 7200000); // 2 hours
+        
+        // Third reminder after 12 hours
+        setTimeout(() => {
+            if (userReminders[chatId] && !userReminders[chatId].paid) {
+                bot.sendMessage(chatId, 'Kursni kirish qismini ko\'ring va bu kurs sizga to\'g\'ri keladimi bilib oling.', {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{text: 'Kursni ko\'rish', url: 'https://example.com/preview'}],
+                            [{text: 'Kursga qaytish', callback_data: `show_course_${courseId}`}],
+                            [{text: 'Admin bilan bog\'lanish', url: `https://t.me/${ADMIN_USERNAME}`}]
+                        ]
+                    }
+                });
+            }
+        }, 43200000); // 12 hours
     } catch (error) {
-        console.error('Phone number check error:', error);
+        console.error('Error generating payment link:', error);
         bot.sendMessage(chatId, 'Xatolik yuz berdi. Iltimos, qayta urinib ko\'ring.');
     }
 };
@@ -472,7 +330,13 @@ const handlePaymentScreenshot = async (msg, chatId, courseId) => {
         });
         
         // Send confirmation message to user
-        bot.sendMessage(chatId, 'Rahmat! Sizning to\'lov chekingiz administratorga yuborildi. Tez orada tekshiriladi.');
+        bot.sendMessage(chatId, 'Rahmat! Sizning to\'lov chekingiz administratorga yuborildi. Tez orada tekshiriladi.', {
+            reply_markup: {
+                inline_keyboard: [
+                    [{text: 'Bosh menyu', callback_data: 'back_to_main'}]
+                ]
+            }
+        });
         
         const course = courses[courseId];
         
@@ -505,7 +369,13 @@ const handlePaymentScreenshot = async (msg, chatId, courseId) => {
         
     } catch (error) {
         console.error('Payment screenshot processing error:', error);
-        bot.sendMessage(chatId, 'Xatolik yuz berdi. Iltimos, qayta urinib ko\'ring yoki administrator bilan bog\'laning.');
+        bot.sendMessage(chatId, 'Xatolik yuz berdi. Iltimos, qayta urinib ko\'ring yoki administrator bilan bog\'laning.', {
+            reply_markup: {
+                inline_keyboard: [
+                    [{text: 'Bosh menyu', callback_data: 'back_to_main'}]
+                ]
+            }
+        });
     }
 };
 
@@ -543,7 +413,13 @@ const confirmPayment = async (paymentId) => {
         
         // Send success message to user
         const course = courses[courseId];
-        bot.sendMessage(chatId, `Tabriklaymiz! Sizning to'lovingiz muvaffaqiyatli qabul qilindi.\n\nSiz "${course.name}" kursini sotib oldingiz.\n\nKursga kirish uchun havola: ${course.telegramLink}`);
+        bot.sendMessage(chatId, `Tabriklaymiz! Sizning to'lovingiz muvaffaqiyatli qabul qilindi.\n\nSiz "${course.name}" kursini sotib oldingiz.\n\nKursga kirish uchun havola: ${course.telegramLink}`, {
+            reply_markup: {
+                inline_keyboard: [
+                    [{text: 'Bosh menyu', callback_data: 'back_to_main'}]
+                ]
+            }
+        });
         
         // Notify admin group
         bot.sendMessage(ADMIN_GROUP_ID, `✅ To'lov tasdiqlandi!\n\nFoydalanuvchi: ${paymentData.fullName}\nKurs: ${course.name}\nSumma: ${course.display_price}`);
@@ -576,10 +452,17 @@ const rejectPayment = async (paymentId) => {
         return;
     }
     
-    const { chatId } = paymentData;
+    const { chatId, courseId } = paymentData;
     
     // Send rejection message to user
-    bot.sendMessage(chatId, 'Sizning to\'lovingiz qabul qilinmadi. Iltimos, administrator bilan bog\'laning: @admin');
+    bot.sendMessage(chatId, 'Sizning to\'lovingiz qabul qilinmadi. Iltimos, administrator bilan bog\'laning.', {
+        reply_markup: {
+            inline_keyboard: [
+                [{text: 'Qayta urinish', callback_data: `show_course_${courseId}`}],
+                [{text: 'Bosh menyu', callback_data: 'back_to_main'}]
+            ]
+        }
+    });
     
     // Notify admin group
     bot.sendMessage(ADMIN_GROUP_ID, `❌ To'lov rad etildi!\n\nFoydalanuvchi: ${paymentData.fullName}`);
@@ -649,48 +532,86 @@ bot.on('callback_query', async (query) => {
     
     console.log(`Callback query received: ${data}`);
     
-    if (data.startsWith('faq_')) {
-        const index = parseInt(data.split('_')[1]);
-        bot.sendMessage(chatId, faq[index].answer);
-        bot.answerCallbackQuery(query.id);
-    } else if (data === 'back_to_main') {
-        const registered = await isUserRegistered(chatId);
-        if (registered) {
-            showMainMenu(chatId);
+    try {
+        if (data.startsWith('faq_')) {
+            const index = parseInt(data.split('_')[1]);
+            bot.sendMessage(chatId, faq[index].answer, {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{text: 'Orqaga', callback_data: 'back_to_faq'}]
+                    ]
+                }
+            });
+            bot.answerCallbackQuery(query.id);
+        } else if (data === 'back_to_faq') {
+            showFAQ(bot, chatId, faq);
+            bot.answerCallbackQuery(query.id);
+        } else if (data === 'back_to_main') {
+            const registered = await isUserRegistered(chatId);
+            if (registered) {
+                try {
+                    const response = await axios.get(`${API_URL}/users/${userIds[chatId]}`);
+                    const userData = response.data;
+                    showMainMenu(bot, chatId, userData.full_name);
+                } catch (error) {
+                    console.error('Error fetching user data:', error);
+                    showMainMenu(bot, chatId);
+                }
+            }
+            bot.answerCallbackQuery(query.id);
+        } else if (data === 'back_to_tariffs') {
+            const registered = await isUserRegistered(chatId);
+            if (registered) {
+                showTariffs(bot, chatId, courses);
+            }
+            bot.answerCallbackQuery(query.id);
+        } else if (data === 'confirm_delete_account') {
+            await deleteUserAccount(bot, chatId, userIds, userPhoneNumbers, userStates, userReminders, API_URL, saveUserData);
+            bot.answerCallbackQuery(query.id);
+        } else if (data === 'cancel_delete_account') {
+            bot.sendMessage(chatId, 'Akkauntni o\'chirish bekor qilindi.');
+            showMainMenu(bot, chatId);
+            bot.answerCallbackQuery(query.id);
+        } else if (data.startsWith('payment_made_')) {
+            const courseId = parseInt(data.split('_')[2]);
+            
+            // Save payment state
+            userStates[chatId] = {
+                step: 'awaiting_screenshot',
+                courseId: courseId
+            };
+            
+            saveUserData({
+                userPhoneNumbers,
+                userStates,
+                userReminders,
+                paymentConfirmations,
+                userIds
+            });
+            
+            bot.sendMessage(chatId, 'Iltimos, to\'lov chekining screenshotini yuboring:', {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{text: 'Orqaga', callback_data: `show_course_${courseId}`}]
+                    ]
+                }
+            });
+            bot.answerCallbackQuery(query.id);
+        } else if (data.startsWith('show_course_')) {
+            const courseId = parseInt(data.split('_')[2]);
+            await sendCourseInfo(chatId, courseId);
+            bot.answerCallbackQuery(query.id);
+        } else if (data.startsWith('confirm_payment_')) {
+            await confirmPayment(data.split('_')[2]);
+            bot.answerCallbackQuery(query.id, { text: 'To\'lov tasdiqlandi!' });
+        } else if (data.startsWith('reject_payment_')) {
+            await rejectPayment(data.split('_')[2]);
+            bot.answerCallbackQuery(query.id, { text: 'To\'lov rad etildi!' });
         }
-        bot.answerCallbackQuery(query.id);
-    } else if (data === 'confirm_delete_account') {
-        await deleteUserAccount(chatId);
-        bot.answerCallbackQuery(query.id);
-    } else if (data === 'cancel_delete_account') {
-        bot.sendMessage(chatId, 'Akkauntni o\'chirish bekor qilindi.');
-        showMainMenu(chatId);
-        bot.answerCallbackQuery(query.id);
-    } else if (data.startsWith('payment_made_')) {
-        const courseId = parseInt(data.split('_')[2]);
-        
-        // Save payment state
-        userStates[chatId] = {
-            step: 'awaiting_screenshot',
-            courseId: courseId
-        };
-        
-        saveUserData({
-            userPhoneNumbers,
-            userStates,
-            userReminders,
-            paymentConfirmations,
-            userIds
-        });
-        
-        bot.sendMessage(chatId, 'Iltimos, to\'lov chekining screenshotini yuboring:');
-        bot.answerCallbackQuery(query.id);
-    } else if (data.startsWith('confirm_payment_')) {
-        await confirmPayment(data.split('_')[2]);
-        bot.answerCallbackQuery(query.id, { text: 'To\'lov tasdiqlandi!' });
-    } else if (data.startsWith('reject_payment_')) {
-        await rejectPayment(data.split('_')[2]);
-        bot.answerCallbackQuery(query.id, { text: 'To\'lov rad etildi!' });
+    } catch (error) {
+        console.error('Callback query error:', error);
+        bot.sendMessage(chatId, 'Xatolik yuz berdi. Iltimos, qayta urinib ko\'ring.');
+        bot.answerCallbackQuery(query.id, { text: 'Xatolik yuz berdi' });
     }
 });
 
@@ -707,14 +628,72 @@ bot.on('contact', async (msg) => {
         console.log(`Contact received from chat ID: ${chatId}, phone: ${phoneNumber}`);
         
         // Check if this phone number is already registered
-        await checkPhoneNumberAndProceed(
-            chatId, 
-            phoneNumber, 
-            userStates[chatId].telegramId,
-            userStates[chatId].firstName,
-            userStates[chatId].lastName,
-            userStates[chatId].username
-        );
+        try {
+            // Find user with this phone number
+            const existingUser = await findUserByPhoneNumber(phoneNumber);
+            
+            if (existingUser) {
+                // User already registered with this phone number
+                userIds[chatId] = existingUser.id; // Store database ID
+                userPhoneNumbers[chatId] = phoneNumber;
+                
+                // Update chat_id if it's different (user might be using a different device)
+                if (existingUser.chat_id !== chatId) {
+                    await axios.put(`${API_URL}/users/${existingUser.id}`, {
+                        chat_id: chatId
+                    });
+                    console.log(`Updated chat_id for user ${existingUser.id} to ${chatId}`);
+                }
+                
+                bot.sendMessage(chatId, `Xush kelibsiz, ${existingUser.full_name}! Siz allaqachon ro'yxatdan o'tgansiz.`);
+                showMainMenu(bot, chatId, existingUser.full_name);
+                
+                // Clear user state
+                delete userStates[chatId];
+                
+                // Save updated user data
+                saveUserData({
+                    userPhoneNumbers,
+                    userStates,
+                    userReminders,
+                    paymentConfirmations,
+                    userIds
+                });
+                
+                console.log(`Existing user logged in: ${existingUser.id}, ${existingUser.full_name}`);
+            } else {
+                // New user, proceed with registration
+                userPhoneNumbers[chatId] = phoneNumber;
+                userStates[chatId] = {
+                    step: 'registration_name',
+                    phoneNumber: phoneNumber,
+                    telegramId: userStates[chatId].telegramId,
+                    firstName: userStates[chatId].firstName,
+                    lastName: userStates[chatId].lastName,
+                    username: userStates[chatId].username
+                };
+                
+                bot.sendMessage(chatId, 'Iltimos, to\'liq ism va familiyangizni kiriting:', {
+                    reply_markup: {
+                        remove_keyboard: true
+                    }
+                });
+                
+                // Save updated user data
+                saveUserData({
+                    userPhoneNumbers,
+                    userStates,
+                    userReminders,
+                    paymentConfirmations,
+                    userIds
+                });
+                
+                console.log(`New user registration started with phone: ${phoneNumber}`);
+            }
+        } catch (error) {
+            console.error('Phone number check error:', error);
+            bot.sendMessage(chatId, 'Xatolik yuz berdi. Iltimos, qayta urinib ko\'ring.');
+        }
     }
 });
 
@@ -749,14 +728,72 @@ bot.on('message', async (msg) => {
         console.log(`Phone number received as text from chat ID: ${chatId}, phone: ${phoneNumber}`);
         
         // Check if this phone number is already registered
-        await checkPhoneNumberAndProceed(
-            chatId, 
-            phoneNumber, 
-            userStates[chatId].telegramId,
-            userStates[chatId].firstName,
-            userStates[chatId].lastName,
-            userStates[chatId].username
-        );
+        try {
+            // Find user with this phone number
+            const existingUser = await findUserByPhoneNumber(phoneNumber);
+            
+            if (existingUser) {
+                // User already registered with this phone number
+                userIds[chatId] = existingUser.id; // Store database ID
+                userPhoneNumbers[chatId] = phoneNumber;
+                
+                // Update chat_id if it's different (user might be using a different device)
+                if (existingUser.chat_id !== chatId) {
+                    await axios.put(`${API_URL}/users/${existingUser.id}`, {
+                        chat_id: chatId
+                    });
+                    console.log(`Updated chat_id for user ${existingUser.id} to ${chatId}`);
+                }
+                
+                bot.sendMessage(chatId, `Xush kelibsiz, ${existingUser.full_name}! Siz allaqachon ro'yxatdan o'tgansiz.`);
+                showMainMenu(bot, chatId, existingUser.full_name);
+                
+                // Clear user state
+                delete userStates[chatId];
+                
+                // Save updated user data
+                saveUserData({
+                    userPhoneNumbers,
+                    userStates,
+                    userReminders,
+                    paymentConfirmations,
+                    userIds
+                });
+                
+                console.log(`Existing user logged in: ${existingUser.id}, ${existingUser.full_name}`);
+            } else {
+                // New user, proceed with registration
+                userPhoneNumbers[chatId] = phoneNumber;
+                userStates[chatId] = {
+                    step: 'registration_name',
+                    phoneNumber: phoneNumber,
+                    telegramId: userStates[chatId].telegramId,
+                    firstName: userStates[chatId].firstName,
+                    lastName: userStates[chatId].lastName,
+                    username: userStates[chatId].username
+                };
+                
+                bot.sendMessage(chatId, 'Iltimos, to\'liq ism va familiyangizni kiriting:', {
+                    reply_markup: {
+                        remove_keyboard: true
+                    }
+                });
+                
+                // Save updated user data
+                saveUserData({
+                    userPhoneNumbers,
+                    userStates,
+                    userReminders,
+                    paymentConfirmations,
+                    userIds
+                });
+                
+                console.log(`New user registration started with phone: ${phoneNumber}`);
+            }
+        } catch (error) {
+            console.error('Phone number check error:', error);
+            bot.sendMessage(chatId, 'Xatolik yuz berdi. Iltimos, qayta urinib ko\'ring.');
+        }
         return;
     }
     
@@ -785,12 +822,12 @@ bot.on('message', async (msg) => {
             
             // Store the user ID from the response
             if (response.data && response.data.id) {
-                userIds[chatId] = response.data.id;
+                userIds[chatId] = response.data.id; // Store database ID
                 console.log(`New user registered with ID: ${response.data.id}`);
             }
             
             bot.sendMessage(chatId, `Rahmat, ${text}! Siz muvaffaqiyatli ro'yxatdan o'tdingiz.`);
-            showMainMenu(chatId, text);
+            showMainMenu(bot, chatId, text);
             delete userStates[chatId];
             
             saveUserData({
@@ -822,7 +859,7 @@ bot.on('message', async (msg) => {
             case 'Kurs sotib olish':
                 const registered = await isUserRegistered(chatId);
                 if (registered) {
-                    showTariffs(chatId);
+                    showTariffs(bot, chatId, courses);
                 }
                 break;
                 
@@ -834,19 +871,25 @@ bot.on('message', async (msg) => {
                 
             case 'Orqaga':
                 if (await isUserRegistered(chatId)) {
-                    showMainMenu(chatId);
+                    showMainMenu(bot, chatId);
                 }
                 break;
                 
             case 'FAQ':
                 if (await isUserRegistered(chatId)) {
-                    showFAQ(chatId);
+                    showFAQ(bot, chatId, faq);
                 }
                 break;
+                case 'Admin bilan bog`lanish':
+                    if (await isUserRegistered(chatId)) {
+                        contactAdmin(bot, chatId);
+                    }
+                    break;
+                
                 
             case 'Akkauntni o\'chirish':
                 if (await isUserRegistered(chatId)) {
-                    confirmDeleteAccount(chatId);
+                    confirmDeleteAccount(bot, chatId);
                 }
                 break;
                 
@@ -870,7 +913,7 @@ bot.on('message', async (msg) => {
                 
             default:
                 if (!userStates[chatId] && userPhoneNumbers[chatId]) {
-                    showMainMenu(chatId);
+                    showMainMenu(bot, chatId);
                 }
         }
     }
@@ -895,3 +938,24 @@ process.on('SIGINT', () => {
     });
     process.exit();
 });
+
+// Export variables and functions for use in other modules
+export {
+    bot,
+    API_URL,
+    ADMIN_GROUP_ID,
+    ADMIN_USERNAME,
+    userPhoneNumbers,
+    userStates,
+    userReminders,
+    paymentConfirmations,
+    userIds,
+    saveUserData,
+    isUserRegistered,
+    findUserByPhoneNumber,
+    sendCourseInfo,
+    handlePaymentScreenshot,
+    confirmPayment,
+    rejectPayment,
+    showUserInfo
+};
