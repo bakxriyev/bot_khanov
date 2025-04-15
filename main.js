@@ -14,7 +14,7 @@ import { confirmDeleteAccount, deleteUserAccount } from './modules/account.js'
 // Bot token and API URL
 const token = process.env.TELEGRAM_BOT_TOKEN || '7898538816:AAGsvkzD5vfBy1289lvq3w_7b9HuuHd2RWw';
 const ADMIN_GROUP_ID = process.env.ADMIN_GROUP_ID || '-4631952717';
-const API_URL = process.env.API_URL || 'http://localhost:5010';
+const API_URL = process.env.API_URL || 'https://backend.khanovbekzod.uz';
 
 // Create bot instance
 const bot = new TelegramBot(token, {polling: true});
