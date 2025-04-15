@@ -13,7 +13,7 @@ import { confirmDeleteAccount, deleteUserAccount } from './modules/account.js';
 import { contactAdmin, showMainMenu, showTariffs } from './modules/menu.js';
 
 // Bot token and API URL
-const token = process.env.TELEGRAM_BOT_TOKEN || '8140794898:AAHn0LABJSZAQhlzZlQcxps9sDkYnkm14xc';
+const token = process.env.TELEGRAM_BOT_TOKEN || '7898538816:AAGsvkzD5vfBy1289lvq3w_7b9HuuHd2RWw';
 const ADMIN_GROUP_ID = process.env.ADMIN_GROUP_ID || '-4631952717';
 const API_URL = process.env.API_URL || 'https://backend.khanovbekzod.uz';
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
