@@ -12,7 +12,7 @@ import { handlePaymentScreenshot, confirmPayment, rejectPayment } from './module
 import { confirmDeleteAccount, deleteUserAccount } from './modules/account.js'
 
 // Bot token and API URL
-const token = process.env.TELEGRAM_BOT_TOKEN || '7898538816:AAGsvkzD5vfBy1289lvq3w_7b9HuuHd2RWw';
+const token = process.env.TELEGRAM_BOT_TOKEN || '7898538816:AAGOSxKaca27REXzwhoJMRP1AlV1POu0cRw';
 const ADMIN_GROUP_ID = process.env.ADMIN_GROUP_ID || '-4631952717';
 const API_URL = process.env.API_URL || 'https://backend.khanovbekzod.uz';
 

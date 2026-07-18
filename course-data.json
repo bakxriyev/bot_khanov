@@ -1,0 +1,26 @@
+{
+  "course_1": {
+    "name": "Birinchi qadam",
+    "price": "699000",
+    "display_price": "699 000 UZS",
+    "description": "📌 Savdo sohasiga kirish\n\n• Mijoz psixologiyasi\n• Asosiy muloqot ko'nikmalari\n• Savdo terminologiyasi\n\n📚 Modullar soni: 4 ta\n🎥 16+ ta video dars\n🔒 Yopiq telegram guruhga kirish",
+    "groupLink": "",
+    "paymentLink": ""
+  },
+  "course_2": {
+    "name": "Ishga tayyor",
+    "price": "899000",
+    "display_price": "899 000 UZS",
+    "description": "📌 Savdo sohasida to'liq tayyorgarlik\n\n• Birinchi qadam modullari\n• Real sotuv amaliyoti\n• Mijozlar bilan ishlash strategiyalari\n• Shaxsiy mentorlik\n\n📚 Modullar soni: 8 ta\n🎥 30+ ta video dars\n🔒 Yopiq telegram guruhga kirish",
+    "groupLink": "",
+    "paymentLink": ""
+  },
+  "course_3": {
+    "name": "Mutaxassis (Pro tarifi)",
+    "price": "1399000",
+    "display_price": "1 399 000 UZS",
+    "description": "📌 To'liq professional savdo mutaxassisi\n\n• Barcha modullar\n• Individual coaching\n• Real loyihalar\n• Sertifikat\n• Ish bilan ta'minlash ko'magi\n\n📚 Modullar soni: 12 ta\n🎥 50+ ta video dars\n🔒 Yopiq telegram guruhga kirish",
+    "groupLink": "",
+    "paymentLink": ""
+  }
+}

@@ -1,15 +1,16 @@
 {
   "name": "telegram-bot",
   "version": "1.0.0",
-  "description": "A simple Telegram bot to fetch and display the latest news from a given URL.",
-  "main": "index.js",
+  "description": "Khanov savdo kurslari Telegram boti",
+  "main": "bot.js",
   "type": "module",
   "scripts": {
-    "start": "node index.js"
+    "start": "node bot.js"
   },
   "author": "Your Name",
   "license": "ISC",
   "dependencies": {
+    "@supabase/supabase-js": "^2.110.7",
     "axios": "^1.8.4",
     "dotenv": "^16.5.0",
     "node-telegram-bot-api": "^0.66.0"
